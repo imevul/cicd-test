@@ -123,8 +123,6 @@ jobs:
 
       - name: Commit TOC file update and create tag
         if: steps.check_tags.outputs.has_tags == 'false'
-        env:
-          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           NEW_VERSION="${{ steps.calculate_version.outputs.new_version }}"
           NEW_TAG="${{ steps.calculate_version.outputs.new_tag }}"
