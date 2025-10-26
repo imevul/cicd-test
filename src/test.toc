@@ -2,6 +2,6 @@
 ## Title: Test Addon
 ## Version: 1.0.2
 ## Author: Test Author
-## Notes: A test addon for CI/CD testing
+## Notes: A test addon for CI/CD testing, and some changes
 
 test.lua
