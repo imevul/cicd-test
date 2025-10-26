@@ -24,9 +24,22 @@ jobs:
           directory: '.'
           path: 'src'
 
-      - name: Create Release
-        uses: ncipollo/release-action@v1
+      - name: Publish Release with Release Drafter
+        id: release_drafter
+        uses: release-drafter/release-drafter@v6
         with:
-          artifacts: "${{ github.event.repository.name }}-${{ github.ref_name }}.zip"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          generateReleaseNotes: true
+          config-name: release-drafter.yml
+          publish: true
+          tag: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.release_drafter.outputs.upload_url }}
+          asset_path: ./${{ github.event.repository.name }}-${{ github.ref_name }}.zip
+          asset_name: ${{ github.event.repository.name }}-${{ github.ref_name }}.zip
+          asset_content_type: application/zip
