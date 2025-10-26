@@ -27,6 +27,6 @@ jobs:
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "src/${{ github.event.repository.name }}-${{  github.ref_name }}.zip"
+          artifacts: "${{ github.event.repository.name }}-${{  github.ref_name }}.zip"
           token: ${{ secrets.GITHUB_TOKEN }}
           generateReleaseNotes: true
