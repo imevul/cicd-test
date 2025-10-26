@@ -38,7 +38,7 @@ jobs:
         run: |
           # Extract version from test.toc
           CURRENT_VERSION=$(grep "## Version:" src/test.toc | \
-            head -n 1 | sed 's/## Version: //' | tr -d ' ')
+            head -n 1 | sed 's/## Version: *\(.*\)/\1/' | sed 's/ //g')
 
           # Validate version was found
           if [ -z "$CURRENT_VERSION" ]; then
@@ -79,7 +79,7 @@ jobs:
         if: steps.check_tags.outputs.has_tags == 'false'
         run: |
           NEW_VERSION="${{ steps.get_version.outputs.new_version }}"
-          sed -i "s/## Version: .*/## Version: $NEW_VERSION/" src/test.toc
+          sed -i "s/^## Version: .*$/## Version: $NEW_VERSION/" src/test.toc
 
       - name: Commit and tag
         if: steps.check_tags.outputs.has_tags == 'false'
