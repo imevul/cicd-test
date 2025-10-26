@@ -1,6 +1,6 @@
 ## Interface: 11500
 ## Title: Test Addon
-## Version: 1.0.6
+## Version: 1.1.0
 ## Author: Test Author
 ## Notes: A test addon for CI/CD testing, and some changes2
 
