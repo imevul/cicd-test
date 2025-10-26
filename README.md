@@ -5,7 +5,7 @@ Testing CI/CD
 
 This repository uses two GitHub Actions workflows:
 
-1. **version-bump.yml** - Automatically bumps the version using git tags and creates a tag when a PR is merged to main. It uses the `anothrNick/github-tag-action@1.67.0` to determine the next version based on the latest git tag, then updates the TOC file to keep it in sync.
+1. **version-bump.yml** - Automatically bumps the version using git tags and creates a tag when a PR is merged to main. It calculates the next version based on the latest git tag, updates the TOC file with the new version, commits the change, and then creates the tag on that commit. This ensures that checking out a tag will have the correct version in the TOC file.
 2. **release-on-tag.yml** - Automatically creates a GitHub release when a tag is pushed
 
 ### Configuration
