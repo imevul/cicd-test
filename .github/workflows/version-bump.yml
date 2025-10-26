@@ -20,11 +20,10 @@ jobs:
       - name: Check if PR has tags
         id: check_tags
         run: |
-          # Get the commits in this PR
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          # Get the head commit SHA
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
 
-          # Check if any commits in the PR range have tags
+          # Check if the head commit has any tags
           TAGS=$(git tag --points-at $HEAD_SHA)
 
           if [ -z "$TAGS" ]; then
@@ -39,14 +38,36 @@ jobs:
         run: |
           # Extract version from test.toc
           CURRENT_VERSION=$(grep "## Version:" src/test.toc | \
-            sed 's/## Version: //')
+            head -n 1 | sed 's/## Version: //' | tr -d ' ')
+
+          # Validate version was found
+          if [ -z "$CURRENT_VERSION" ]; then
+            echo "Error: Could not find version in test.toc"
+            exit 1
+          fi
+
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
 
           # Parse version components
           IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+
+          # Validate version format (must have 3 parts)
+          if [ ${#VERSION_PARTS[@]} -ne 3 ]; then
+            echo "Error: Version must be in format X.Y.Z, got: $CURRENT_VERSION"
+            exit 1
+          fi
+
           MAJOR="${VERSION_PARTS[0]}"
           MINOR="${VERSION_PARTS[1]}"
           PATCH="${VERSION_PARTS[2]}"
+
+          # Validate that all parts are numbers
+          if ! [[ "$MAJOR" =~ ^[0-9]+$ ]] || \
+             ! [[ "$MINOR" =~ ^[0-9]+$ ]] || \
+             ! [[ "$PATCH" =~ ^[0-9]+$ ]]; then
+            echo "Error: Version parts must be numbers, got: $CURRENT_VERSION"
+            exit 1
+          fi
 
           # Bump patch version
           NEW_PATCH=$((PATCH + 1))
