@@ -45,6 +45,16 @@ jobs:
             echo "has_tags=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Run Release Drafter
+        if: steps.check_tags.outputs.has_tags == 'false'
+        id: release_drafter
+        uses: release-drafter/release-drafter@v6
+        with:
+          config-name: release-drafter.yml
+          disable-autolabeler: true
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+
       - name: Calculate next version
         if: steps.check_tags.outputs.has_tags == 'false'
         id: calculate_version
@@ -52,33 +62,72 @@ jobs:
           # Get the latest tag
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Latest tag: $LATEST_TAG"
-          
+
           # Remove 'v' prefix for version calculation
           VERSION=${LATEST_TAG#v}
-          
+
           # Split version into major, minor, patch
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-          
-          # Bump patch version (DEFAULT_BUMP: patch)
-          PATCH=$((PATCH + 1))
-          
+
+          # Get PR labels
+          PR_LABELS='${{ toJSON(github.event.pull_request.labels.*.name) }}'
+          echo "PR Labels: $PR_LABELS"
+
+          # Get branch name for keyword detection
+          BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+          echo "Branch name: $BRANCH_NAME"
+
+          # Determine bump type based on labels (highest priority wins)
+          BUMP_TYPE="patch"
+
+          # Check for major version bump
+          if echo "$PR_LABELS" | grep -qiE '"(major|breaking|breaking-change)"'; then
+            BUMP_TYPE="major"
+          # Check for minor version bump
+          elif echo "$PR_LABELS" | grep -qiE '"(minor|feature|enhancement)"'; then
+            BUMP_TYPE="minor"
+          # Check for patch version bump
+          elif echo "$PR_LABELS" | grep -qiE '"(patch|fix|bugfix|bug|chore|maintenance|documentation|docs)"'; then
+            BUMP_TYPE="patch"
+          # Fallback: Check branch name for keywords
+          elif echo "$BRANCH_NAME" | grep -qiE '(major|breaking)'; then
+            BUMP_TYPE="major"
+          elif echo "$BRANCH_NAME" | grep -qiE '(minor|feature|feat)'; then
+            BUMP_TYPE="minor"
+          fi
+
+          echo "Bump type determined: $BUMP_TYPE"
+
+          # Bump version based on type
+          if [ "$BUMP_TYPE" = "major" ]; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          elif [ "$BUMP_TYPE" = "minor" ]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          else
+            PATCH=$((PATCH + 1))
+          fi
+
           # Construct new version
           NEW_VERSION="$MAJOR.$MINOR.$PATCH"
           NEW_TAG="v$NEW_VERSION"
-          
+
           echo "New version: $NEW_VERSION"
           echo "New tag: $NEW_TAG"
-          
+
           # Set outputs
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+          echo "bump_type=$BUMP_TYPE" >> "$GITHUB_OUTPUT"
 
       - name: Update version in TOC file
         if: steps.check_tags.outputs.has_tags == 'false'
         run: |
           # Get the new version
           NEW_VERSION="${{ steps.calculate_version.outputs.new_version }}"
-          
+
           # Update the version in the TOC file
           sed -i "s/^## Version: .*$/## Version: $NEW_VERSION/" ${{ env.TOC_FILE }}
 
@@ -87,16 +136,17 @@ jobs:
         run: |
           NEW_VERSION="${{ steps.calculate_version.outputs.new_version }}"
           NEW_TAG="${{ steps.calculate_version.outputs.new_tag }}"
+          BUMP_TYPE="${{ steps.calculate_version.outputs.bump_type }}"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add ${{ env.TOC_FILE }}
-          git commit -m "Update TOC version to $NEW_VERSION [skip ci]"
-          
+          git commit -m "Update TOC version to $NEW_VERSION ($BUMP_TYPE bump) [skip ci]"
+
           # Create tag on the commit with updated TOC file
           git tag "$NEW_TAG"
-          
+
           # Push both the commit and the tag
           git push origin main
           git push origin "$NEW_TAG"
