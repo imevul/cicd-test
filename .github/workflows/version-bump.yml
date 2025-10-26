@@ -1,0 +1,98 @@
+name: Version Bump on PR Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  version-bump:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if PR has tags
+        id: check_tags
+        run: |
+          # Get the head commit SHA
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          # Check if the head commit has any tags
+          TAGS=$(git tag --points-at $HEAD_SHA)
+
+          if [ -z "$TAGS" ]; then
+            echo "has_tags=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_tags=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get current version
+        if: steps.check_tags.outputs.has_tags == 'false'
+        id: get_version
+        run: |
+          # Extract version from test.toc
+          CURRENT_VERSION=$(grep "## Version:" src/test.toc | \
+            head -n 1 | sed 's/## Version: *\(.*\)/\1/' | sed 's/ //g')
+
+          # Validate version was found
+          if [ -z "$CURRENT_VERSION" ]; then
+            echo "Error: Could not find version in test.toc"
+            exit 1
+          fi
+
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
+          # Parse version components
+          IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+
+          # Validate version format (must have 3 parts)
+          if [ ${#VERSION_PARTS[@]} -ne 3 ]; then
+            echo "Error: Version must be in format X.Y.Z, got: $CURRENT_VERSION"
+            exit 1
+          fi
+
+          MAJOR="${VERSION_PARTS[0]}"
+          MINOR="${VERSION_PARTS[1]}"
+          PATCH="${VERSION_PARTS[2]}"
+
+          # Validate that all parts are numbers
+          if ! [[ "$MAJOR" =~ ^[0-9]+$ ]] || \
+             ! [[ "$MINOR" =~ ^[0-9]+$ ]] || \
+             ! [[ "$PATCH" =~ ^[0-9]+$ ]]; then
+            echo "Error: Version parts must be numbers, got: $CURRENT_VERSION"
+            exit 1
+          fi
+
+          # Bump patch version
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update version in TOC file
+        if: steps.check_tags.outputs.has_tags == 'false'
+        run: |
+          NEW_VERSION="${{ steps.get_version.outputs.new_version }}"
+          sed -i "s/^## Version: .*$/## Version: $NEW_VERSION/" src/test.toc
+
+      - name: Commit and tag
+        if: steps.check_tags.outputs.has_tags == 'false'
+        run: |
+          NEW_VERSION="${{ steps.get_version.outputs.new_version }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add src/test.toc
+          git commit -m "Bump version to $NEW_VERSION"
+          git tag "v$NEW_VERSION"
+          git push origin main
+          git push origin "v$NEW_VERSION"
