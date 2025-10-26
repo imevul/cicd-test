@@ -45,16 +45,6 @@ jobs:
             echo "has_tags=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Run Release Drafter
-        if: steps.check_tags.outputs.has_tags == 'false'
-        id: release_drafter
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter.yml
-          disable-autolabeler: true
-        env:
-          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
-
       - name: Calculate next version
         if: steps.check_tags.outputs.has_tags == 'false'
         id: calculate_version

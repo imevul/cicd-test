@@ -24,7 +24,8 @@ jobs:
           directory: '.'
           path: 'src'
 
-      - name: Publish Release
+      - name: Publish Release with Release Drafter
+        id: release_drafter
         uses: release-drafter/release-drafter@v6
         with:
           config-name: release-drafter.yml
@@ -33,20 +34,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Get Release Upload URL
-        id: get_release
-        run: |
-          UPLOAD_URL=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }}" | \
-            jq -r .upload_url)
-          echo "upload_url=$UPLOAD_URL" >> "$GITHUB_OUTPUT"
-
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          upload_url: ${{ steps.release_drafter.outputs.upload_url }}
           asset_path: ./${{ github.event.repository.name }}-${{ github.ref_name }}.zip
           asset_name: ${{ github.event.repository.name }}-${{ github.ref_name }}.zip
           asset_content_type: application/zip
