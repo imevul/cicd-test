@@ -1,0 +1,7 @@
+## Interface: 11500
+## Title: Test Addon
+## Version: 1.0.0
+## Author: Test Author
+## Notes: A test addon for CI/CD testing
+
+test.lua
