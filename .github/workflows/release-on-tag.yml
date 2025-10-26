@@ -19,13 +19,14 @@ jobs:
         uses: thedoctor0/zip-release@0.7.5
         with:
           type: 'zip'
-          filename: 'release.zip'
+          filename: '${{ github.event.repository.name }}-${{  github.ref_name }}.zip'
+          exclusions: '*.git* /*node_modules/* .editorconfig .vscode .vscode/* README.md LICENSE'
           directory: '.'
           path: 'src'
 
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "release.zip"
+          artifacts: "src/${{ github.event.repository.name }}-${{  github.ref_name }}.zip"
           token: ${{ secrets.GITHUB_TOKEN }}
           generateReleaseNotes: true
