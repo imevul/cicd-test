@@ -123,6 +123,8 @@ jobs:
 
       - name: Commit TOC file update and create tag
         if: steps.check_tags.outputs.has_tags == 'false'
+        env:
+          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           NEW_VERSION="${{ steps.calculate_version.outputs.new_version }}"
           NEW_TAG="${{ steps.calculate_version.outputs.new_tag }}"
@@ -131,12 +133,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          # Configure git to use the GitHub App token for push
+          git remote set-url origin https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/${{ github.repository }}.git
+
           git add ${{ env.TOC_FILE }}
           git commit -m "Update TOC version to $NEW_VERSION ($BUMP_TYPE bump)"
 
           # Create tag on the commit with updated TOC file
           git tag "$NEW_TAG"
 
-          # Push both the commit and the tag
+          # Push both the commit and the tag using the GitHub App token
           git push origin main
           git push origin "$NEW_TAG"
